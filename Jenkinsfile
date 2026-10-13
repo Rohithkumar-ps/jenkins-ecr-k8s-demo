@@ -31,7 +31,13 @@ pipeline {
         stage('Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                    script {
+                        def qg = waitForQualityGate()
+                        echo "Quality Gate status: ${qg.status}"
+                        if (qg.status != 'OK' && qg.status != 'NONE') {
+                            error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                        }
+                    }
                 }
             }
         }
@@ -47,7 +53,7 @@ pipeline {
                 sh '''
                     set -e
 
-                    aws ecr get-login-password --region "$AWS_REGION" |
+                    aws ecr get-login-password --region "$AWS_REGION" | \
                         docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
                     docker push "$IMAGE_URI"
